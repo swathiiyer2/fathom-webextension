@@ -43,13 +43,13 @@ function withoutQueryParams(url){
 /*
  * Ruleset for product images
  */
-function tunedImageFnodes(nodeToCssMap, coeffImgSize = 1.9, coeffImgHasSrc = 3.0, coeffImgTitle = 420.0,
+function tunedImageFnodes(coeffImgSize = 1.9, coeffImgHasSrc = 3.0, coeffImgTitle = 420.0,
   coeffItemprop = 500.0, coeffBadKeywords = 0.05, coeffGoodKeywords = 800.0, coeffClassKeywords = 1300.0,
   coeffTitleWords = 0.7, coeffAboveTheFold = 0.2, coeffLeftOfPage = 0.5, coeffSVGs = 0.1, coeffDataURLs = 0.1, titleWordsBase = 1.3) {
     let title = '';
 
     function imageSize(fnode) {
-      const css = nodeToCssMap.get(fnode.element);
+      const css = fnode.element.getBoundingClientRect();
       if ((css.right - css.left) * (css.bottom - css.top) === 0){
         return 1;
       }
@@ -116,7 +116,7 @@ function tunedImageFnodes(nodeToCssMap, coeffImgSize = 1.9, coeffImgHasSrc = 3.0
     }
 
     function aboveTheFold(fnode){
-      const css = nodeToCssMap.get(fnode.element);
+      const css = fnode.element.getBoundingClientRect();
       if (css.top < VIEWPORT_HEIGHT){
         return 1;
       }
@@ -124,7 +124,7 @@ function tunedImageFnodes(nodeToCssMap, coeffImgSize = 1.9, coeffImgHasSrc = 3.0
     }
 
     function leftOfPage(fnode){
-      const css = nodeToCssMap.get(fnode.element);
+      const css = fnode.element.getBoundingClientRect();
       if (css.left < VIEWPORT_WIDTH/2){
         return 1;
       }
@@ -139,7 +139,6 @@ function tunedImageFnodes(nodeToCssMap, coeffImgSize = 1.9, coeffImgHasSrc = 3.0
     }
 
     function notDataURLs(fnode){
-      const css = nodeToCssMap.get(fnode.element);
       if (fnode.element.hasAttribute('src') && fnode.element.getAttribute('src').includes('data:')){
         return 0;
       }
@@ -186,7 +185,7 @@ function tunedImageFnodes(nodeToCssMap, coeffImgSize = 1.9, coeffImgHasSrc = 3.0
     );
 
     function tuningRoutine(doc) {
-        title = tunedTitleFnodes(nodeToCssMap)(doc).map(fnode => fnode.element.innerHTML)[0];
+        title = tunedTitleFnodes()(doc).map(fnode => fnode.element.innerHTML)[0];
         return rules.against(doc).get('product-image');
     }
 
@@ -196,7 +195,7 @@ function tunedImageFnodes(nodeToCssMap, coeffImgSize = 1.9, coeffImgHasSrc = 3.0
 /*
  * Ruleset for product titles
  */
-function tunedTitleFnodes(nodeToCssMap) {
+function tunedTitleFnodes() {
 
     const rules = ruleset(
       //get all title tags in the inserted fixture
@@ -217,7 +216,7 @@ function tunedTitleFnodes(nodeToCssMap) {
 /*
  * Ruleset for product prices
  */
-function tunedPriceFnodes(nodeToCssMap, coeffDollarSign = 4.4, coeffNearDollarSign = 3, coeffHasNumbers = 100,
+function tunedPriceFnodes(coeffDollarSign = 4.4, coeffNearDollarSign = 3, coeffHasNumbers = 100,
   coeffSpanBonus = 2, coeffSemanticTags = 5, coeffCurrentPrice = 2.6, coeffItemprop = 160, coeffKeywords = 2.6,
   coeffStrike = 0.4, coeffNotSavings = 0.2, coeffAboveFold = 0.5, coeffCenterRight = 0.2, coeffMiddleHeight = 0.5,
   coeffBolded = 4.4, coeffNumNumbers4 = 1.6, coeffNumNumbers8 = 0.8, coeffNumNumbers = 0.2, coeffNumDollarSigns = 0.05,
@@ -294,8 +293,8 @@ function tunedPriceFnodes(nodeToCssMap, coeffDollarSign = 4.4, coeffNearDollarSi
     }
 
     function notSrikedOut(fnode){
-      const css = nodeToCssMap.get(fnode.element);
-      if (css.strikethrough === 'line-through'){
+      const css = window.getComputedStyle(fnode.element).getPropertyValue('text-decoration');
+      if (css === 'line-through'){
         return coeffStrike;
       }
       return 1;
@@ -310,7 +309,7 @@ function tunedPriceFnodes(nodeToCssMap, coeffDollarSign = 4.4, coeffNearDollarSi
     }
 
     function aboveTheFold(fnode){
-      const css = nodeToCssMap.get(fnode.element);
+      const css = fnode.element.getBoundingClientRect();
       if (css.top < VIEWPORT_HEIGHT){
         return 1;
       }
@@ -318,7 +317,7 @@ function tunedPriceFnodes(nodeToCssMap, coeffDollarSign = 4.4, coeffNearDollarSi
     }
 
     function centerRightOfPage(fnode){
-      const css = nodeToCssMap.get(fnode.element);
+      const css = fnode.element.getBoundingClientRect();
       //somewhat arbitrary choices, could put it through the optimizer later
       if (css.left > VIEWPORT_WIDTH/3 && css.left < VIEWPORT_WIDTH * 3/4){
         return 1;
@@ -327,7 +326,7 @@ function tunedPriceFnodes(nodeToCssMap, coeffDollarSign = 4.4, coeffNearDollarSi
     }
 
     function middleHeight(fnode){
-      const css = nodeToCssMap.get(fnode.element);
+      const css = fnode.element.getBoundingClientRect();
       //somewhat arbitrary choices, could put it through the optimizer later
       if (css.top > VIEWPORT_HEIGHT/6 && css.top < VIEWPORT_HEIGHT * 3/4){
         return 1;
@@ -463,28 +462,28 @@ function tunedPriceFnodes(nodeToCssMap, coeffDollarSign = 4.4, coeffNearDollarSi
 
     return tuningRoutine;
 }
-//
-// /*
-//  * Maintain state as we compare a series of DOMs, reporting the percent difference at the end.
-//  */
+
+/*
+ * Maintain state as we compare a series of DOMs, reporting the percent difference at the end.
+ */
 class DiffStats {
     constructor(tuningRoutine, feature) {
         this.feature = feature;
         this.tuningRoutine = tuningRoutine || tuningRoutines[feature].routine;
     }
 
-    compare(sourceDom, nodeToCssMap, coeffs) {
+    compare(coeffs) {
         let gotText;
         if (this.feature === 'image') {
-          gotText = withoutQueryParams(this.tuningRoutine(nodeToCssMap, ...coeffs)(sourceDom).map(fnode => fnode.element.src)[0]);
+          gotText = withoutQueryParams(this.tuningRoutine(...coeffs)(window.document).map(fnode => fnode.element.src)[0]);
 
         } else if (this.feature === 'title') {
           //compare innerHTML text of titles
-          gotText = this.tuningRoutine(nodeToCssMap, ...coeffs)(sourceDom).map(fnode => fnode.element.innerHTML)[0];
+          gotText = this.tuningRoutine(...coeffs)(window.document).map(fnode => fnode.element.innerHTML)[0];
 
         } else if (this.feature === 'price') {
           //strip whitespace, dollar sign, words, and trailing zeros when comparing price
-          gotText = this.tuningRoutine(nodeToCssMap, ...coeffs)(sourceDom).map(fnode => fnode.element)[0];
+          gotText = this.tuningRoutine(...coeffs)(window.document).map(fnode => fnode.element)[0];
           gotText = formatPrice((gotText.tagName !== 'META')? gotText.textContent : gotText.getAttribute('content'));
 
         }
@@ -495,56 +494,20 @@ class DiffStats {
         return this.gotText;
     }
 }
-//
-// /*
-//  * Calculate overall score for one feature
-//  * @param {object} folders array of all test folders
-//  * @param {string} feature title/image/price
-//  * @param {object} array of tuning coeffs if any
-//  */
-function deviationScore(dataMap, feature, coeffs = []) {
+
+/*
+ * Calculate overall score for one feature
+ * @param {string} feature title/image/price
+ * @param {object} array of tuning coeffs if any
+ */
+function deviationScore(feature, coeffs = []) {
     const stats = new DiffStats(tuningRoutines[feature].routine, feature);
-    stats.compare(dataMap.sourceDom, dataMap.nodeToCssMap, coeffs);
+    stats.compare(coeffs);
     return stats.result();
-}
-//
-// /*
-//  * Reads/parses the node#->css dictionary collected by selenium, and creates a new map from HTMLObj -> CSS
-//  */
-function createDict(item, sourceDom){
-  let nodesMap = new Map();
-  const all = document.getElementsByTagName("*");
-  for (let j = 0; j < all.length; j++) {
-       const currNode = all[j];
-       const currRect = currNode.getBoundingClientRect();
-       const css = { "top" : currRect.top,
-                     "bottom" : currRect.bottom,
-                     "left" : currRect.left,
-                     "right" : currRect.right,
-                     "display" : currNode.style.display,
-                     "visibility" : currNode.style.visibility,
-                     "strikethrough" : window.getComputedStyle(currNode).getPropertyValue('text-decoration')
-                    };
-      nodesMap.set(currNode, css);
-  }
-  return nodesMap;
-}
-//
-// /*
-//  * Creates a map from each folder to its corresponding node-CSS map, sourceDom, and expected image, title, and price.
-//  */
-//
-function createDataMap(folders){
-  const nodeToCssMap = createDict();
-  const dataMap = {'nodeToCssMap' : nodeToCssMap,
-                   'sourceDom' : window.document};
-  console.log('Map made for ' + window.location.hostname);
-  return dataMap;
 }
 
 
 document.body.style.border = "5px solid red";
-const dataMap = createDataMap();
-console.log(deviationScore(dataMap, 'title', tuningRoutines['title'].coeffs));
-console.log(deviationScore(dataMap, 'image', tuningRoutines['image'].coeffs));
-console.log(deviationScore(dataMap, 'price', tuningRoutines['price'].coeffs));
+console.log(deviationScore('title', tuningRoutines['title'].coeffs));
+console.log(deviationScore('image', tuningRoutines['image'].coeffs));
+console.log(deviationScore('price', tuningRoutines['price'].coeffs));
