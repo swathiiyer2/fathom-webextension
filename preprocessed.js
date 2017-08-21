@@ -506,8 +506,30 @@ function deviationScore(feature, coeffs = []) {
     return stats.result();
 }
 
-
-document.body.style.border = "5px solid red";
 console.log(deviationScore('title', tuningRoutines['title'].coeffs));
 console.log(deviationScore('image', tuningRoutines['image'].coeffs));
 console.log(deviationScore('price', tuningRoutines['price'].coeffs));
+
+
+// Inform the background page that
+// this tab should have a page-action
+browser.runtime.sendMessage({
+  from:    'content',
+  subject: 'showPageAction'
+});
+
+// Listen for messages from the popup
+browser.runtime.onMessage.addListener(function (msg, sender, response) {
+  // First, validate the message's structure
+  if ((msg.from === 'popup') && (msg.subject === 'DOMInfo')) {
+    var domInfo = {
+      title:  deviationScore('title', tuningRoutines['title'].coeffs),
+      image:  deviationScore('image', tuningRoutines['image'].coeffs),
+      price:  deviationScore('price', tuningRoutines['price'].coeffs)
+    };
+
+    // Directly respond to the sender (popup),
+    // through the specified callback */
+    response(domInfo);
+  }
+});
