@@ -11,12 +11,6 @@
     "96":"icons/product-icon-96.png"
   },
 
-  "page_action": {
-    "default_icon": "icons/product-icon-32.png",
-    "default_title": "Fathom-Products",
-    "default_popup": "popup/product_popup.html"
-  },
-
   "browser_action": {
     "default_icon": "icons/product-icon-32.png",
     "default_title": "Fathom-Products",
@@ -33,7 +27,6 @@
   ],
 
   "background": {
-    "persistent": false,
     "scripts": ["background.js"]
   }
 
