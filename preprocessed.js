@@ -5,11 +5,6 @@
  *
  * Features: Title, Image, Price
  *
- * Testing:
- *    50 test products in product_classification_test_data folder
- *    All test sources are product detail pages (one main product on this page)
- *    Later, go on to extract products from a product index page (multiple products per page)
- *
  */
 
 const {dom, out, rule, ruleset, score, type} = require('fathom-web');
@@ -18,8 +13,8 @@ const tuningRoutines = {
                         'price' : {'routine': tunedPriceFnodes, 'coeffs':  [ 4.4, 3, 100, 2, 5, 2.6, 160, 2.6, 0.4, 0.2, 0.5, 0.2, 0.5, 4.4, 1.6, 0.8, 0.2, 0.05, 2.6, 0.65, 440]},
                         'image' : {'routine': tunedImageFnodes, 'coeffs': [1.9, 3.0, 420.0, 500.0, 0.05, 800.0, 1300.0, 0.7, 0.2, 0.5, 0.1, 0.1, 1.3]}
                         };
-const VIEWPORT_WIDTH = 1680;
-const VIEWPORT_HEIGHT = 960;
+const VIEWPORT_WIDTH = window.innerWidth;
+const VIEWPORT_HEIGHT = window.innerHeight;
 
 /*
  * Remove dollar sign, strip whitespace, strip words (anything not numeric or a price symbol), and remove trailing zeros
@@ -463,52 +458,34 @@ function tunedPriceFnodes(coeffDollarSign = 4.4, coeffNearDollarSign = 3, coeffH
     return tuningRoutine;
 }
 
-/*
- * Maintain state as we compare a series of DOMs, reporting the percent difference at the end.
- */
-class DiffStats {
-    constructor(tuningRoutine, feature) {
-        this.feature = feature;
-        this.tuningRoutine = tuningRoutine || tuningRoutines[feature].routine;
-    }
-
-    compare(coeffs) {
-        let gotText;
-        if (this.feature === 'image') {
-          gotText = withoutQueryParams(this.tuningRoutine(...coeffs)(window.document).map(fnode => fnode.element.src)[0]);
-
-        } else if (this.feature === 'title') {
-          //compare innerHTML text of titles
-          gotText = this.tuningRoutine(...coeffs)(window.document).map(fnode => fnode.element.innerHTML)[0];
-
-        } else if (this.feature === 'price') {
-          //strip whitespace, dollar sign, words, and trailing zeros when comparing price
-          gotText = this.tuningRoutine(...coeffs)(window.document).map(fnode => fnode.element)[0];
-          gotText = formatPrice((gotText.tagName !== 'META')? gotText.textContent : gotText.getAttribute('content'));
-
-        }
-        this.gotText = gotText;
-    }
-
-    result() {
-        return this.gotText;
-    }
-}
 
 /*
- * Calculate overall score for one feature
+ * Run the ruleset for a feature against the current window document
  * @param {string} feature title/image/price
  * @param {object} array of tuning coeffs if any
  */
-function deviationScore(feature, coeffs = []) {
-    const stats = new DiffStats(tuningRoutines[feature].routine, feature);
-    stats.compare(coeffs);
-    return stats.result();
+function runRuleset(feature, coeffs = []) {
+    const tuningRoutine = tuningRoutines[feature].routine;
+    let gotText;
+    if (feature === 'image') {
+      gotText = withoutQueryParams(tuningRoutine(...coeffs)(window.document).map(fnode => fnode.element.src)[0]);
+
+    } else if (feature === 'title') {
+      //compare innerHTML text of titles
+      gotText = tuningRoutine(...coeffs)(window.document).map(fnode => fnode.element.innerHTML)[0];
+
+    } else if (feature === 'price') {
+      //strip whitespace, dollar sign, words, and trailing zeros when comparing price
+      gotText = tuningRoutine(...coeffs)(window.document).map(fnode => fnode.element)[0];
+      gotText = formatPrice((gotText.tagName !== 'META')? gotText.textContent : gotText.getAttribute('content'));
+
+    }
+    return gotText;
 }
 
-console.log(deviationScore('title', tuningRoutines['title'].coeffs));
-console.log(deviationScore('image', tuningRoutines['image'].coeffs));
-console.log(deviationScore('price', tuningRoutines['price'].coeffs));
+console.log(runRuleset('title', tuningRoutines['title'].coeffs));
+console.log(runRuleset('image', tuningRoutines['image'].coeffs));
+console.log(runRuleset('price', tuningRoutines['price'].coeffs));
 
 
 // Inform the background page that
@@ -523,9 +500,9 @@ browser.runtime.onMessage.addListener(function (msg, sender, response) {
   // First, validate the message's structure
   if ((msg.from === 'popup') && (msg.subject === 'DOMInfo')) {
     var domInfo = {
-      title:  deviationScore('title', tuningRoutines['title'].coeffs),
-      image:  deviationScore('image', tuningRoutines['image'].coeffs),
-      price:  deviationScore('price', tuningRoutines['price'].coeffs)
+      title:  runRuleset('title', tuningRoutines['title'].coeffs),
+      image:  runRuleset('image', tuningRoutines['image'].coeffs),
+      price:  runRuleset('price', tuningRoutines['price'].coeffs)
     };
 
     // Directly respond to the sender (popup),
